@@ -7,11 +7,11 @@
 #include "config.h"
 
 #ifdef USE_FIXED_POINT
-#define PROCESS_VALUE(val, weight) (Fixed(val) * Fixed(weight))
-#define CONVERT_BACK(val) float(val)
+#define PROCESS_VALUE(val, weight) ((TO_FIXED(val) * TO_FIXED(weight)) / FP_SCALE)
+#define CONVERT_BACK(val) FROM_FIXED(val)
 #else
 #define PROCESS_VALUE(val, weight) ((val) * (weight))
-#define CONVERT_BACK(val) static_cast<uint8_t>(clamp_value((val), 0.0f, 255.0f))
+#define CONVERT_BACK(val) static_cast<uint8_t>(std::max(0.0f, std::min((val), 255.0f)))
 #endif
 
 namespace hardware
@@ -79,7 +79,6 @@ namespace hardware
 
         void ConvolutionFilter::apply(pixel *input, pixel *output, int width, int height)
         {
-
 // Hardware simulation: register for accumulation
 #ifdef DEBUG
             std::cout << "[CONV] Applying " << kernelSize << "x" << kernelSize
@@ -105,16 +104,10 @@ namespace hardware
                             int idx = (y + ky) * width + (x + kx);
                             int kernelIdx = (ky + kernelRadius) * kernelSize + (kx + kernelRadius);
 
-#ifdef USE_FIXED_POINT
-                            Fixed weight = Fixed(kernel[kernelIdx]);
-                            sum_r += PROCESS_VALUE(input[idx].r, weight);
-                            sum_g += PROCESS_VALUE(input[idx].g, weight);
-                            sum_b += PROCESS_VALUE(input[idx].b, weight);
-#else
+                            // Use PROCESS_VALUE macro directly - it handles the conversion
                             sum_r += PROCESS_VALUE(input[idx].r, kernel[kernelIdx]);
                             sum_g += PROCESS_VALUE(input[idx].g, kernel[kernelIdx]);
                             sum_b += PROCESS_VALUE(input[idx].b, kernel[kernelIdx]);
-#endif
                         }
                     }
 

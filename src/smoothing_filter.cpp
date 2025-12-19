@@ -35,6 +35,7 @@ namespace hardware
             {
                 for (int x = 1; x < width - 1; x++)
                 {
+#ifdef USE_FIXED_POINT
                     Fixed sum = 0;
                     for (int dy = -1; dy <= 1; dy++)
                     {
@@ -48,11 +49,31 @@ namespace hardware
                                           << " max=" << (width * height - 1) << std::endl;
                                 continue;
                             }
-                            sum += Fixed((float)input[idx].r);
+                            sum += TO_FIXED(input[idx].r);
                         }
                     }
+                    // For fixed point: sum is scaled by FP_SCALE, divide by 9 to get average
+                    uint8_t avg = FROM_FIXED(sum / 9);
+#else
+                    float sum = 0.0f;
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            int idx = (y + dy) * width + (x + dx);
+                            // Debug bounds check
+                            if (idx < 0 || idx >= width * height)
+                            {
+                                std::cerr << "[SMOOTH] ERROR: Index out of bounds! idx=" << idx
+                                          << " max=" << (width * height - 1) << std::endl;
+                                continue;
+                            }
+                            sum += input[idx].r;
+                        }
+                    }
+                    uint8_t avg = (uint8_t)(sum / 9.0f);
+#endif
 
-                    uint8_t avg = (uint8_t)(float(sum) / 9.0f);
                     int idx = y * width + x;
 
                     // Debug bounds check for output
